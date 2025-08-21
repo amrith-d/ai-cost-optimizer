@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Smart Router V2: Enhanced Content Complexity Scoring - Configuration-Based Version
-Implements intelligent model routing using centralized configuration
+Smart Router V2: Content Complexity Scoring - Week 1 Foundation
+Simple intelligent model routing for cost optimization
 """
 
 import re
@@ -22,303 +22,276 @@ class ComplexityScore:
     recommended_tier: str   # Model tier recommendation
 
 class SmartRouterV2:
-    """Enhanced smart routing with content complexity analysis using configuration"""
+    """Smart routing with content complexity analysis - Week 1 Foundation"""
     
     def __init__(self, config_path: str = "config/settings.yaml"):
         # Load configuration from YAML
         self.config = self._load_config(config_path)
         
+        # Set up complexity analysis weights
+        complexity_config = self.config.get('complexity_analysis', {})
+        self.weights = complexity_config.get('weights', {
+            'technical': 0.35,
+            'sentiment': 0.25, 
+            'length': 0.20,
+            'domain': 0.20
+        })
         
-        # Extract complexity analysis config
-        complexity_config = self.config['complexity_analysis']
-        self.weights = complexity_config['weights']
-        self.thresholds = complexity_config['thresholds']
+        # Model configurations
+        self.models = self.config.get('models', {})
         
-        # Technical keywords by domain from config
-        tech_keywords = complexity_config['technical_keywords']
-        self.technical_keywords = {
-            category: self._flatten_keyword_list(keywords) 
-            for category, keywords in tech_keywords.items()
+        # Technical terms by category for scoring
+        self.technical_terms = {
+            'Electronics': [
+                'processor', 'cpu', 'gpu', 'ram', 'memory', 'storage', 'ssd', 'hdd',
+                'display', 'resolution', 'refresh rate', 'brightness', 'contrast',
+                'battery', 'mah', 'watt', 'voltage', 'amperage', 'usb', 'hdmi',
+                'bluetooth', 'wifi', 'connectivity', 'ports', 'interface'
+            ],
+            'Books': [
+                'plot', 'character', 'narrative', 'prose', 'style', 'genre',
+                'chapter', 'storyline', 'protagonist', 'antagonist', 'theme',
+                'development', 'pacing', 'dialogue', 'setting', 'climax'
+            ],
+            'Home_and_Garden': [
+                'material', 'durability', 'weather resistant', 'assembly',
+                'installation', 'maintenance', 'quality', 'construction',
+                'design', 'functionality', 'ergonomic', 'efficiency'
+            ]
         }
         
-        # Sentiment indicators from config
-        sentiment_config = complexity_config['sentiment_indicators']
-        self.complex_sentiment_indicators = sentiment_config['complex']
-        self.simple_sentiment_indicators = sentiment_config['simple']
-        
-        # Complexity scoring parameters
-        scoring_config = self.config['complexity_scoring']
-        self.technical_density_divisor = scoring_config['technical_density_divisor']
-        self.max_base_score = scoring_config['max_base_score']
-        self.bonuses = scoring_config['bonuses']
-        self.length_thresholds = scoring_config['length_thresholds']
+    def _load_config(self, config_path: str) -> Dict[str, Any]:
+        """Load and validate configuration from YAML file"""
+        try:
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+            return config
+        except FileNotFoundError:
+            # Return default config if file not found
+            return self._get_default_config()
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML configuration: {e}")
     
-    def _load_config(self, config_path: str) -> Dict:
-        """Load configuration from YAML file"""
-        with open(config_path, 'r') as f:
-            return yaml.safe_load(f)
+    def _get_default_config(self) -> Dict[str, Any]:
+        """Default configuration for Week 1"""
+        return {
+            'models': {
+                'ultra_lightweight': {
+                    'models': [{'name': 'openai/gpt-4o-mini', 'cost_per_million': 0.15}],
+                    'complexity_threshold': 0.2
+                },
+                'lightweight': {
+                    'models': [{'name': 'anthropic/claude-3-haiku', 'cost_per_million': 0.25}],
+                    'complexity_threshold': 0.4
+                },
+                'medium': {
+                    'models': [{'name': 'openai/gpt-3.5-turbo', 'cost_per_million': 0.50}],
+                    'complexity_threshold': 0.7
+                }
+            },
+            'complexity_analysis': {
+                'weights': {
+                    'technical': 0.35,
+                    'sentiment': 0.25,
+                    'length': 0.20,
+                    'domain': 0.20
+                }
+            }
+        }
     
-    def _flatten_keyword_list(self, keyword_groups: List[str]) -> List[str]:
-        """Flatten comma-separated keyword groups into individual keywords"""
-        keywords = []
-        for group in keyword_groups:
-            keywords.extend([kw.strip() for kw in group.split(',')])
-        return keywords
-    
-    def analyze_technical_complexity(self, text: str, category: str) -> float:
-        """Analyze technical complexity based on domain-specific keywords"""
-        if category not in self.technical_keywords:
-            return 0.3  # Default moderate complexity for unknown categories
-            
-        keywords = self.technical_keywords[category]
-        text_lower = text.lower()
-        
-        # Count technical terms
-        technical_matches = sum(1 for keyword in keywords if keyword in text_lower)
-        
-        # Calculate density-based score
-        technical_density = technical_matches / len(text.split()) if len(text.split()) > 0 else 0
-        base_score = min(technical_density / self.technical_density_divisor, self.max_base_score)
-        
-        # Bonus scoring for specific patterns
-        bonus_score = 0
-        
-        # Technical specifications
-        if re.search(r'\d+\s*(gb|mb|ghz|mhz|mp|inches?|feet|volt)', text_lower):
-            bonus_score += self.bonuses['specification']
-        
-        # Comparative language  
-        if re.search(r'(better|worse|faster|slower|compared)', text_lower):
-            bonus_score += self.bonuses['comparison']
-            
-        # Numbers and measurements
-        if re.search(r'\b\d+(\.\d+)?\s*(hours?|minutes?|days?|months?)', text_lower):
-            bonus_score += self.bonuses['numbers']
-        
-        return min(base_score + bonus_score, 1.0)
-    
-    def analyze_sentiment_complexity(self, text: str) -> float:
-        """Analyze sentiment complexity - mixed/nuanced vs simple emotions"""
-        text_lower = text.lower()
-        
-        # Count complex sentiment indicators
-        complex_count = sum(1 for indicator in self.complex_sentiment_indicators 
-                          if indicator in text_lower)
-        
-        # Count simple sentiment indicators  
-        simple_count = sum(1 for indicator in self.simple_sentiment_indicators
-                         if indicator in text_lower)
-        
-        # Multiple sentiment words indicate complexity
-        sentiment_word_count = complex_count + simple_count
-        
-        # Scoring logic
-        if complex_count > 0:
-            base_score = 0.7 + (complex_count * 0.1)
-        elif sentiment_word_count > 3:
-            base_score = 0.4  # Multiple sentiments = moderate complexity
-        elif simple_count > 0:
-            base_score = 0.1  # Simple clear sentiment
-        else:
-            base_score = 0.3  # Neutral/unclear = moderate complexity
-            
-        return min(base_score, 1.0)
-    
-    def analyze_length_complexity(self, text: str) -> float:
-        """Analyze complexity based on text length and structure"""
-        word_count = len(text.split())
-        sentence_count = len([s for s in text.split('.') if s.strip()])
-        
-        # Length-based complexity using config thresholds
-        thresholds = self.length_thresholds
-        if word_count < thresholds['very_short']:
-            length_score = 0.1
-        elif word_count < thresholds['short']:
-            length_score = 0.2
-        elif word_count < thresholds['medium']:
-            length_score = 0.4
-        elif word_count < thresholds['long']:
-            length_score = 0.6
-        else:
-            length_score = 0.8
-            
-        # Structure complexity (avg words per sentence)
-        if sentence_count > 0:
-            avg_sentence_length = word_count / sentence_count
-            if avg_sentence_length > 20:
-                length_score += 0.1  # Long sentences = more complex
-                
-        return min(length_score, 1.0)
-    
-    def analyze_domain_complexity(self, text: str, category: str) -> float:
-        """Analyze domain-specific complexity patterns"""
-        # Category-specific domain modifiers from config
-        domain_modifiers = self.config['categories']
-        
-        if category in domain_modifiers:
-            complexity_threshold = domain_modifiers[category]['complexity_threshold']
-            base_score = complexity_threshold
-        else:
-            base_score = 0.5  # Default moderate complexity
-        
-        # Look for domain-specific complexity indicators
-        text_lower = text.lower()
-        
-        # Technical comparisons and detailed analysis
-        technical_patterns = [
-            r'versus|vs\.?\s+', r'compared to', r'in contrast',
-            r'pros and cons', r'advantages', r'disadvantages'
-        ]
-        
-        matches = sum(1 for pattern in technical_patterns 
-                     if re.search(pattern, text_lower))
-        
-        # Boost complexity for comparative analysis
-        complexity_bonus = matches * 0.15
-        
-        return min(base_score + complexity_bonus, 1.0)
-    
-    def calculate_complexity_score(self, text: str, category: str) -> ComplexityScore:
+    def analyze_complexity(self, review_text: str, category: str) -> ComplexityScore:
         """Calculate comprehensive complexity score"""
         
-        # Individual complexity scores
-        technical = self.analyze_technical_complexity(text, category)
-        sentiment = self.analyze_sentiment_complexity(text) 
-        length = self.analyze_length_complexity(text)
-        domain = self.analyze_domain_complexity(text, category)
+        # Input validation
+        if not review_text or not review_text.strip():
+            raise ValueError("Review text cannot be empty")
+        if not category:
+            raise ValueError("Category cannot be empty")
+            
+        review_text = review_text.strip()
         
-        # Weighted final score using config weights
+        # Calculate individual scores
+        technical_score = self._calculate_technical_score(review_text, category)
+        sentiment_score = self._calculate_sentiment_score(review_text)
+        length_score = self._calculate_length_score(review_text)
+        domain_score = self._calculate_domain_score(review_text, category)
+        
+        # Calculate weighted final score
         final_score = (
-            technical * self.weights['technical'] +
-            sentiment * self.weights['sentiment'] + 
-            length * self.weights['length'] +
-            domain * self.weights['domain']
+            technical_score * self.weights['technical'] +
+            sentiment_score * self.weights['sentiment'] +
+            length_score * self.weights['length'] +
+            domain_score * self.weights['domain']
         )
         
         # Determine recommended tier
-        recommended_tier = self.select_optimal_tier(final_score)
+        recommended_tier = self._determine_model_tier(final_score)
         
         return ComplexityScore(
-            technical_score=technical,
-            sentiment_score=sentiment,
-            length_score=length,
-            domain_score=domain,
+            technical_score=technical_score,
+            sentiment_score=sentiment_score,
+            length_score=length_score,
+            domain_score=domain_score,
             final_score=final_score,
             recommended_tier=recommended_tier
         )
     
-    def select_optimal_tier(self, complexity_score: float) -> str:
-        """Select optimal model tier based on complexity using config thresholds"""
+    def route_request(self, review_text: str, category: str) -> Dict[str, Any]:
+        """Main routing function with detailed analysis"""
         
-        # Tier selection using config thresholds
-        if complexity_score <= self.thresholds['ultra_lightweight']:
-            return 'ultra_lightweight'
-        elif complexity_score <= self.thresholds['lightweight']:
-            return 'lightweight'
-        elif complexity_score <= self.thresholds['medium']:
-            return 'medium'
-        elif complexity_score <= self.thresholds['high']:
-            return 'high'
-        else:
-            return 'premium'
+        # Calculate complexity
+        complexity = self.analyze_complexity(review_text, category)
+        
+        # Get model details for the recommended tier
+        tier_config = self.models.get(complexity.recommended_tier, {})
+        models = tier_config.get('models', [])
+        
+        if not models:
+            # Fallback to medium tier if configuration issue
+            models = self.models.get('medium', {}).get('models', [])
+            if not models:
+                models = [{'name': 'openai/gpt-3.5-turbo', 'cost_per_million': 0.50}]
+        
+        selected_model = models[0]  # Use first model in tier
+        
+        return {
+            'model_name': selected_model['name'],
+            'cost_per_million_tokens': selected_model['cost_per_million'],
+            'complexity_score': complexity.final_score,
+            'tier': complexity.recommended_tier,
+            'reasoning': f"Complexity: {complexity.final_score:.3f} → {complexity.recommended_tier}"
+        }
     
-    def route_review(self, review_text: str, category: str) -> Dict:
-        """Main routing function with detailed analysis and caching"""
+    def _calculate_technical_score(self, text: str, category: str) -> float:
+        """Calculate technical complexity score"""
+        technical_terms = self.technical_terms.get(category, [])
         
+        if not technical_terms:
+            return 0.1  # Default low score for unknown categories
         
-        complexity = self.calculate_complexity_score(review_text, category)
+        text_lower = text.lower()
+        technical_count = sum(1 for term in technical_terms if term.lower() in text_lower)
         
-        # Get model configuration for the recommended tier
-        models_config = self.config['models']
-        tier_config = models_config[complexity.recommended_tier]
+        # Normalize based on text length and term availability
+        text_words = len(text.split())
+        if text_words == 0:
+            return 0.0
         
-        result = {
-            'recommended_tier': complexity.recommended_tier,
-            'complexity_analysis': {
-                'technical': complexity.technical_score,
-                'sentiment': complexity.sentiment_score, 
-                'length': complexity.length_score,
-                'domain': complexity.domain_score,
-                'final': complexity.final_score
-            },
-            'model_config': {
-                'model_name': tier_config['openrouter_name'],
-                'cost_per_million': tier_config['cost_per_million_tokens'],
-                'max_tokens': tier_config['max_tokens'],
-                'fallback_models': tier_config['fallback_models']
-            },
-            'estimated_cost': self._estimate_cost(review_text, tier_config),
-            'routing_explanation': self._explain_routing(complexity, category),
-            'cache_hit': False
+        density = technical_count / text_words
+        normalized_score = min(density * 10, 1.0)  # Scale and cap at 1.0
+        
+        return normalized_score
+    
+    def _calculate_sentiment_score(self, text: str) -> float:
+        """Calculate sentiment analysis complexity"""
+        # Simple heuristics for sentiment complexity
+        
+        # Emotional indicators
+        emotional_words = [
+            'love', 'hate', 'amazing', 'terrible', 'fantastic', 'awful',
+            'excellent', 'horrible', 'perfect', 'worst', 'best', 'disappointed'
+        ]
+        
+        # Nuanced sentiment indicators
+        nuanced_words = [
+            'however', 'although', 'despite', 'nevertheless', 'on the other hand',
+            'mixed feelings', 'somewhat', 'partially', 'mostly', 'generally'
+        ]
+        
+        text_lower = text.lower()
+        emotional_count = sum(1 for word in emotional_words if word in text_lower)
+        nuanced_count = sum(1 for phrase in nuanced_words if phrase in text_lower)
+        
+        # Sentence complexity (more sentences = more complex sentiment)
+        sentence_count = len(re.split(r'[.!?]+', text))
+        
+        # Calculate score
+        base_score = 0.1
+        emotional_factor = min(emotional_count * 0.1, 0.4)
+        nuanced_factor = min(nuanced_count * 0.2, 0.3)
+        sentence_factor = min(sentence_count * 0.05, 0.3)
+        
+        return min(base_score + emotional_factor + nuanced_factor + sentence_factor, 1.0)
+    
+    def _calculate_length_score(self, text: str) -> float:
+        """Calculate length-based complexity score"""
+        char_count = len(text)
+        word_count = len(text.split())
+        
+        # Length complexity factors
+        if char_count < 50:
+            return 0.1  # Very short
+        elif char_count < 150:
+            return 0.3  # Short
+        elif char_count < 300:
+            return 0.5  # Medium
+        elif char_count < 500:
+            return 0.7  # Long
+        else:
+            return 0.9  # Very long
+    
+    def _calculate_domain_score(self, text: str, category: str) -> float:
+        """Calculate domain-specific complexity"""
+        # Domain complexity indicators
+        domain_indicators = {
+            'Electronics': ['specs', 'specifications', 'performance', 'benchmarks'],
+            'Books': ['author', 'writing style', 'literary', 'narrative'],
+            'Home_and_Garden': ['installation', 'assembly', 'durability', 'weather']
         }
         
-        return result
-    
-    def _estimate_cost(self, text: str, tier_config: Dict) -> float:
-        """Estimate cost for processing this text"""
-        # Rough token estimation (1 token ≈ 4 characters)
-        estimated_tokens = len(text) / 4 + tier_config['max_tokens']
-        cost_per_million = tier_config['cost_per_million_tokens']
-        return (estimated_tokens / 1_000_000) * cost_per_million
-    
-    def _explain_routing(self, complexity: ComplexityScore, category: str) -> List[str]:
-        """Generate human-readable explanation of routing decision"""
-        reasons = []
+        indicators = domain_indicators.get(category, [])
+        text_lower = text.lower()
         
-        if complexity.final_score <= 0.3:
-            reasons.append("Simple analysis suitable for lightweight model")
-        elif complexity.final_score <= 0.6:
-            reasons.append("Moderate complexity requires balanced model")
-        else:
-            reasons.append("High complexity requires premium model capabilities")
-            
-        if complexity.technical_score > 0.5:
-            reasons.append(f"High technical content detected in {category} domain")
-            
-        if complexity.sentiment_score > 0.6:
-            reasons.append("Complex sentiment analysis required")
-            
-        return reasons
+        indicator_count = sum(1 for indicator in indicators if indicator in text_lower)
+        
+        # Question marks indicate analytical complexity
+        question_count = text.count('?')
+        
+        # Comparison words indicate analytical thinking
+        comparison_words = ['better', 'worse', 'compared to', 'versus', 'vs', 'than']
+        comparison_count = sum(1 for word in comparison_words if word in text_lower)
+        
+        base_score = 0.1
+        indicator_factor = min(indicator_count * 0.15, 0.4)
+        question_factor = min(question_count * 0.1, 0.2)
+        comparison_factor = min(comparison_count * 0.1, 0.3)
+        
+        return min(base_score + indicator_factor + question_factor + comparison_factor, 1.0)
     
-    def get_cache_statistics(self) -> Optional[Dict[str, Any]]:
-        """Get comprehensive cache performance statistics"""
-        if not self.cache_manager:
-            return None
-        return self.cache_manager.get_performance_stats()
-    
-    def clear_cache(self):
-        """Clear all cached analysis results"""
-        if self.cache_manager:
-            self.cache_manager.clear_all_caches()
+    def _determine_model_tier(self, complexity_score: float) -> str:
+        """Determine appropriate model tier based on complexity score"""
+        
+        for tier_name, tier_config in self.models.items():
+            threshold = tier_config.get('complexity_threshold', 1.0)
+            if complexity_score <= threshold:
+                return tier_name
+        
+        # If no tier matches, return the last one (highest complexity)
+        return list(self.models.keys())[-1] if self.models else 'medium'
 
-
+# Example usage and testing
 if __name__ == "__main__":
-    # Test the configuration-based router
+    # Test the router
     router = SmartRouterV2()
     
+    # Test reviews
     test_reviews = [
-        {
-            'text': "This laptop is great!",
-            'category': 'Electronics',
-            'expected': 'ultra_lightweight'
-        },
-        {
-            'text': "The processor performance varies significantly depending on thermal throttling conditions, with sustained workloads showing decreased throughput compared to initial benchmark results.",
-            'category': 'Electronics', 
-            'expected': 'high'
-        }
+        ("Great product!", "Electronics"),
+        ("The processor performance is exceptional with 12-core architecture delivering impressive benchmarks.", "Electronics"),
+        ("Love this book! Amazing story.", "Books"),
+        ("The narrative structure is complex with multiple interconnected storylines and character development.", "Books")
     ]
     
-    print("🧪 Testing Configuration-Based Smart Router V2\n")
+    print("Smart Router V2 - Week 1 Foundation Test")
+    print("=" * 50)
     
-    for i, review in enumerate(test_reviews, 1):
-        print(f"Test {i}: {review['text'][:50]}...")
-        result = router.route_review(review['text'], review['category'])
+    for review, category in test_reviews:
+        result = router.route_request(review, category)
+        complexity = router.analyze_complexity(review, category)
         
-        print(f"  Recommended: {result['recommended_tier']}")
-        print(f"  Expected: {review['expected']}")
-        print(f"  Complexity: {result['complexity_analysis']['final']:.2f}")
-        print(f"  Model: {result['model_config']['model_name']}")
-        print(f"  Estimated Cost: ${result['estimated_cost']:.6f}")
-        print(f"  Reasons: {'; '.join(result['routing_explanation'])}")
-        print()
+        print(f"\nReview: {review[:50]}...")
+        print(f"Category: {category}")
+        print(f"Complexity: {complexity.final_score:.3f}")
+        print(f"Model: {result['model_name']}")
+        print(f"Cost: ${result['cost_per_million_tokens']}/M tokens")
+        print(f"Reasoning: {result['reasoning']}")

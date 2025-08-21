@@ -92,7 +92,7 @@ Python 3.8+
 OpenRouter API Key
 
 # Install dependencies
-pip install datasets pandas pyyaml requests asyncio
+pip install datasets pandas pyyaml requests openai tiktoken
 ```
 
 ### **Quick Start**
