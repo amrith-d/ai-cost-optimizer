@@ -1,0 +1,162 @@
+# Test Configuration File - Simplified for Testing
+# This config file is used exclusively for unit tests
+
+# API Configuration
+api:
+  base_url: "https://test-api.example.com"
+  timeout: 5
+  max_retries: 2
+  rate_limit: 5
+
+# Model Configurations by Tier
+models:
+  ultra_lightweight:
+    openrouter_name: "test/gpt-4o-mini"
+    cost_per_million_tokens: 0.10
+    max_tokens: 50
+    description: "Test lightweight model"
+    fallback_models:
+      - "test/claude-3-haiku"
+      - "test/gpt-3.5-turbo"
+    
+  lightweight:
+    openrouter_name: "test/claude-3-haiku"
+    cost_per_million_tokens: 0.20
+    max_tokens: 100
+    description: "Test basic model"
+    fallback_models:
+      - "test/gpt-3.5-turbo"
+      - "test/gpt-4o-mini"
+    
+  medium:
+    openrouter_name: "test/gpt-3.5-turbo"
+    cost_per_million_tokens: 0.40
+    max_tokens: 150
+    description: "Test medium model"
+    fallback_models:
+      - "test/claude-3-haiku"
+      - "test/gpt-4o-mini"
+    
+  high:
+    openrouter_name: "test/gpt-4o"
+    cost_per_million_tokens: 2.00
+    max_tokens: 200
+    description: "Test high-end model"
+    fallback_models:
+      - "test/claude-3-sonnet"
+      - "test/gpt-3.5-turbo"
+    
+  premium:
+    openrouter_name: "test/claude-3-sonnet"
+    cost_per_million_tokens: 2.50
+    max_tokens: 250
+    description: "Test premium model"
+    fallback_models:
+      - "test/gpt-4o"
+      - "test/gpt-3.5-turbo"
+
+# Budget Configuration
+budget:
+  max_daily_spend: 1.00
+  max_per_request: 0.01
+  alert_threshold: 0.80
+
+# Processing Configuration
+processing:
+  batch_size: 5
+  max_concurrent: 2
+  timeout_per_request: 5
+  cache_ttl: 300
+
+# Complexity Analysis Configuration
+complexity_analysis:
+  weights:
+    technical: 0.35
+    sentiment: 0.25
+    length: 0.20
+    domain: 0.20
+  
+  thresholds:
+    ultra_lightweight: 0.2
+    lightweight: 0.4
+    medium: 0.6
+    high: 0.8
+    premium: 1.0
+  
+  technical_keywords:
+    Electronics:
+      - processor, cpu, gpu, ram, memory
+      - battery, mah, voltage, watts
+      - display, screen, resolution, pixels
+    Books:
+      - plot, character, narrative, prose
+      - writing, style, dialogue, theme
+    Home_and_Garden:
+      - material, construction, assembly
+      - durability, weather, resistance
+
+  sentiment_indicators:
+    complex:
+      - ambivalent, conflicted, nuanced
+      - mixed feelings, pros and cons
+      - depends on, varies, sometimes
+    simple:
+      - love, hate, amazing, terrible
+      - excellent, horrible, great, bad
+
+# Data Loading Configuration
+data_loading:
+  default_sample_size: 10
+  default_batch_size: 5
+  reviews_per_category: 10
+  stream_batch_size: 5
+
+# Complexity Scoring Parameters
+complexity_scoring:
+  technical_density_divisor: 5
+  max_base_score: 0.6
+  bonuses:
+    specification: 0.2
+    comparison: 0.1
+    numbers: 0.1
+  length_thresholds:
+    very_short: 10
+    short: 25
+    medium: 50
+    long: 100
+
+# Baseline Comparison Configuration
+baseline_comparison:
+  tokens_per_request: 100
+  baseline_model: "test-gpt-4-turbo"
+  baseline_cost_per_million: 5.00
+
+# Validation Configuration
+validation:
+  variance_threshold: 1.0
+  tolerance_percentage: 10.0
+
+# Category-specific Settings
+categories:
+  Electronics:
+    default_tier: "high"
+    complexity_threshold: 0.6
+    technical_keywords: ["test", "device", "performance"]
+    
+  Books:
+    default_tier: "lightweight"
+    complexity_threshold: 0.4
+    technical_keywords: ["story", "writing", "content"]
+    
+  Home_and_Garden:
+    default_tier: "medium"
+    complexity_threshold: 0.5
+    technical_keywords: ["quality", "durability", "value"]
+
+# Error Handling
+error_handling:
+  max_retries: 2
+  backoff_factor: 1.5
+  timeout: 5
+  fallback_enabled: true
+  log_errors: true
