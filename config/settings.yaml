@@ -1,0 +1,199 @@
+# OpenRouter API Configuration
+# Model configurations and pricing for Amazon Review Optimizer
+
+# API Configuration
+api:
+  base_url: "https://openrouter.ai/api/v1"
+  timeout: 30
+  max_retries: 3
+  rate_limit: 10  # requests per second
+
+# Week 2 Enhancement: Multi-Level Caching System
+caching:
+  enabled: true
+  l1_cache:
+    max_size: 1000
+    ttl_seconds: 3600      # 1 hour expiration
+    metrics_enabled: true
+    hash_algorithm: "sha256"
+    key_truncate_length: 16
+  l2_cache:
+    enabled: false         # Start with L1 only, enable after validation
+    similarity_threshold: 0.85
+    max_entries: 10000
+    cleanup_interval: 1000  # entries
+    similarity_algorithm: "cosine"  # cosine, jaccard, levenshtein
+  performance:
+    memory_limit_mb: 512
+    monitoring_enabled: true
+    analytics_file: "cache/performance.json"
+
+# Model Configurations by Tier
+models:
+  ultra_lightweight:
+    openrouter_name: "openai/gpt-4o-mini"
+    cost_per_million_tokens: 0.15
+    max_tokens: 100
+    description: "Cheapest model for simple sentiment analysis"
+    fallback_models:
+      - "anthropic/claude-3-haiku"
+      - "openai/gpt-3.5-turbo"
+    
+  lightweight:
+    openrouter_name: "anthropic/claude-3-haiku"
+    cost_per_million_tokens: 0.25
+    max_tokens: 150
+    description: "Good balance of cost and quality for straightforward analysis"
+    fallback_models:
+      - "openai/gpt-3.5-turbo"
+      - "openai/gpt-4o-mini"
+    
+  medium:
+    openrouter_name: "openai/gpt-3.5-turbo"
+    cost_per_million_tokens: 0.50
+    max_tokens: 200
+    description: "Default model for medium complexity reviews"
+    fallback_models:
+      - "anthropic/claude-3-haiku"
+      - "openai/gpt-4o-mini"
+    
+  high:
+    openrouter_name: "openai/gpt-4o"
+    cost_per_million_tokens: 2.50
+    max_tokens: 300
+    description: "High-quality analysis for complex technical reviews"
+    fallback_models:
+      - "anthropic/claude-3-sonnet"
+      - "openai/gpt-3.5-turbo"
+    
+  premium:
+    openrouter_name: "anthropic/claude-3-sonnet"
+    cost_per_million_tokens: 3.00
+    max_tokens: 400
+    description: "Premium model for complex technical analysis"
+    fallback_models:
+      - "openai/gpt-4o"
+      - "openai/gpt-3.5-turbo"
+
+# Budget Configuration
+budget:
+  max_daily_spend: 5.00
+  max_per_request: 0.10
+  alert_threshold: 0.80  # Alert at 80% of budget
+
+# Processing Configuration
+processing:
+  batch_size: 10
+  max_concurrent: 5
+  timeout_per_request: 30
+  cache_ttl: 3600  # 1 hour
+
+# Complexity Analysis Configuration
+complexity_analysis:
+  weights:
+    technical: 0.35
+    sentiment: 0.25
+    length: 0.20
+    domain: 0.20
+  
+  # Complexity thresholds for tier selection
+  thresholds:
+    ultra_lightweight: 0.2  # <= 0.2
+    lightweight: 0.4        # <= 0.4
+    medium: 0.6            # <= 0.6
+    high: 0.8              # <= 0.8
+    premium: 1.0           # > 0.8
+  
+  # Technical keywords by category
+  technical_keywords:
+    Electronics:
+      - processor, cpu, gpu, ram, memory, storage, ssd, hdd
+      - battery, mah, voltage, amperage, watts, hz, ghz, mhz
+      - display, screen, resolution, pixels, refresh, brightness
+      - camera, megapixels, sensor, lens, optical, zoom
+      - connectivity, wifi, bluetooth, usb, port, cable
+      - performance, benchmark, fps, latency, throughput
+      - software, firmware, update, compatibility, driver
+    Books:
+      - narrative, plot, character, development, theme
+      - writing, style, prose, dialogue, structure
+      - genre, fiction, non-fiction, biography, academic
+      - research, sources, references, methodology
+      - editing, grammar, formatting, typography
+    Home_and_Garden:
+      - material, construction, assembly, installation
+      - durability, weather, resistance, maintenance
+      - dimensions, size, capacity, weight, space
+      - efficiency, performance, energy, consumption
+      - design, aesthetics, functionality, ergonomics
+  
+  # Sentiment complexity indicators
+  sentiment_indicators:
+    complex:
+      - ambivalent, conflicted, nuanced, sophisticated
+      - bittersweet, mixed feelings, pros and cons
+      - depends on, varies, sometimes, occasionally
+      - initially, eventually, over time, after using
+      - compared to, relative to, better than, worse than
+    simple:
+      - love, hate, amazing, terrible, perfect, awful
+      - excellent, horrible, great, bad, good, wonderful
+      - disappointed, satisfied, recommend, avoid
+
+# Data Loading Configuration
+data_loading:
+  default_sample_size: 100
+  default_batch_size: 50
+  reviews_per_category: 334
+  stream_batch_size: 50
+
+# Complexity Scoring Parameters
+complexity_scoring:
+  technical_density_divisor: 10
+  max_base_score: 0.6
+  bonuses:
+    specification: 0.2
+    comparison: 0.1
+    numbers: 0.1
+  length_thresholds:
+    very_short: 20
+    short: 50
+    medium: 100
+    long: 200
+
+# Baseline Comparison Configuration
+baseline_comparison:
+  tokens_per_request: 150
+  baseline_model: "gpt-4-turbo"
+  baseline_cost_per_million: 10.00
+
+# Validation Configuration
+validation:
+  variance_threshold: 2.0
+  tolerance_percentage: 5.0
+
+# Category-specific Settings
+categories:
+  Electronics:
+    default_tier: "high"
+    complexity_threshold: 0.6
+    technical_keywords: ["battery", "performance", "quality", "durability", "features"]
+    
+  Books:
+    default_tier: "lightweight"
+    complexity_threshold: 0.4
+    technical_keywords: ["content", "writing", "story", "characters", "plot"]
+    
+  Home_and_Garden:
+    default_tier: "medium"
+    complexity_threshold: 0.5
+    technical_keywords: ["quality", "durability", "ease", "value", "performance"]
+
+# Error Handling
+error_handling:
+  max_retries: 3
+  backoff_factor: 2
+  timeout: 30
+  fallback_enabled: true
+  log_errors: true
+
