@@ -10,12 +10,6 @@ import yaml
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
-# Week 2 Enhancement: Import caching system
-try:
-    from ..caching.cache_manager import CacheManager
-    CACHING_AVAILABLE = True
-except ImportError:
-    CACHING_AVAILABLE = False
 
 @dataclass
 class ComplexityScore:
@@ -34,14 +28,6 @@ class SmartRouterV2:
         # Load configuration from YAML
         self.config = self._load_config(config_path)
         
-        # Week 2 Enhancement: Initialize cache manager
-        self.cache_manager = None
-        if CACHING_AVAILABLE:
-            try:
-                self.cache_manager = CacheManager(config_path)
-            except Exception as e:
-                print(f"Warning: Cache initialization failed: {e}")
-                self.cache_manager = None
         
         # Extract complexity analysis config
         complexity_config = self.config['complexity_analysis']
@@ -239,12 +225,6 @@ class SmartRouterV2:
     def route_review(self, review_text: str, category: str) -> Dict:
         """Main routing function with detailed analysis and caching"""
         
-        # Week 2 Enhancement: Check cache first
-        if self.cache_manager:
-            cached_result = self.cache_manager.get_analysis(review_text, category)
-            if cached_result:
-                cached_result['cache_hit'] = True
-                return cached_result
         
         complexity = self.calculate_complexity_score(review_text, category)
         
@@ -269,12 +249,8 @@ class SmartRouterV2:
             },
             'estimated_cost': self._estimate_cost(review_text, tier_config),
             'routing_explanation': self._explain_routing(complexity, category),
-            'cache_hit': False  # Mark as not from cache
+            'cache_hit': False
         }
-        
-        # Week 2 Enhancement: Store result in cache
-        if self.cache_manager:
-            self.cache_manager.store_analysis(review_text, category, result)
         
         return result
     

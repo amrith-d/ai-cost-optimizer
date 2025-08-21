@@ -469,363 +469,56 @@ class ModelRouter:
     def get_cost_per_token(self, model: str) -> float:
         return self.model_costs.get(model, 1.0) / 1_000_000
 
-class SemanticCache:
-    """Cache similar analysis results with efficient lookup and validation"""
-    
-    def __init__(self, max_size: int = 1000):
-        # Early validation
-        if max_size <= 0:
-            raise ValueError("Cache max_size must be positive")
-        
-        self.cache: Dict[str, ProductReviewResult] = {}
-        self.max_size: int = max_size
-        self.hits: int = 0
-        self.misses: int = 0
-        
-    def _get_cache_key(self, review_text: str, category: str) -> str:
-        """Generate cache key with input validation"""
-        # Early validation
-        if not review_text or not review_text.strip():
-            raise ValueError("Review text cannot be empty")
-        if not category:
-            raise ValueError("Category cannot be empty")
-        
-        content = review_text.lower().strip()[:100]
-        key_string = f"{category}_{content}"
-        return hashlib.md5(key_string.encode()).hexdigest()
-    
-    def _generate_cache_key(self, review_text: str, category: str) -> str:
-        """Alternative method name for test compatibility"""
-        return self._get_cache_key(review_text, category)
-    
-    def get(self, review_text: str, category: str) -> Optional[ProductReviewResult]:
-        cache_key = self._get_cache_key(review_text, category)
-        result = self.cache.get(cache_key)
-        if result is not None:
-            self.hits += 1
-        else:
-            self.misses += 1
-        return result
-    
-    def set(self, review_text: str, category: str, result: ProductReviewResult):
-        if len(self.cache) >= self.max_size:
-            # Remove oldest entry (FIFO)
-            oldest_key = next(iter(self.cache))
-            del self.cache[oldest_key]
-        
-        cache_key = self._get_cache_key(review_text, category)
-        self.cache[cache_key] = result
-    
-    def put(self, review_text: str, category: str, result):
-        """Alternative method name for test compatibility"""
-        self.set(review_text, category, result)
-    
-    def clear(self):
-        """Clear the cache"""
-        self.cache.clear()
-        self.hits = 0
-        self.misses = 0
-    
-    def get_stats(self) -> Dict:
-        """Get cache statistics"""
-        total_requests = self.hits + self.misses
-        hit_rate = (self.hits / total_requests) if total_requests > 0 else 0
-        
-        return {
-            'hits': self.hits,
-            'misses': self.misses,
-            'total_requests': total_requests,
-            'hit_rate': hit_rate,
-            'cache_size': len(self.cache),
-            'max_size': self.max_size
-        }
 
 class AmazonReviewAnalyzer:
-    """Main analyzer with optimizations"""
+    """Main analyzer class that orchestrates the review analysis workflow"""
     
-    def __init__(self):
+    def __init__(self, config_path: str = "config/settings.yaml"):
+        # Early validation
+        if not config_path:
+            raise ValueError("Config path cannot be empty")
+        
+        self.data_loader = AmazonDataLoader(config_path)
         self.cost_tracker = CostTracker()
-        self.model_router = ModelRouter()
-        self.cache = SemanticCache()
-        self.data_loader = AmazonDataLoader()
-    
-    async def analyze_review(self, review_data: Dict[str, Any]) -> ProductReviewResult:
-        """Analyze single review with comprehensive error handling and optimizations"""
-        # Early validation - guard clauses
+        self.router = ModelRouter(config_path)
+        
+    def analyze_review(self, review_data: Dict[str, Any]) -> ProductReviewResult:
+        """Analyze a single review with complexity-based routing"""
+        # Early validation
         if not review_data:
             raise ValueError("Review data cannot be empty")
+        if 'text' not in review_data:
+            raise ValueError("Review data must contain 'text' field")
         
-        required_fields = ['review_text', 'category']
-        for field in required_fields:
-            if field not in review_data:
-                raise ValueError(f"Missing required field: {field}")
-            if not review_data[field]:
-                raise ValueError(f"Field '{field}' cannot be empty")
+        review_text = review_data['text']
+        category = review_data.get('category', 'Unknown')
         
-        start_time = time.time()
-        review_text = review_data['review_text']
-        category = review_data['category']
+        # Route to appropriate model
+        routing_result = self.router.route_review(review_text, category)
         
-        try:
-            # Check cache first
-            cached_result = self.cache.get(review_text, category)
-            if cached_result:
-                cached_result.cache_hit = True
-                self.cost_tracker.log_request('cache', 0, 0.0, cache_hit=True)
-                return cached_result
-        except Exception as e:
-            # Log cache error but continue with analysis
-            print(f"Warning: Cache lookup failed: {e}")
-            pass
-        
-        # Route to optimal model
-        model = self.model_router.route_request(review_text, category)
-        
-        # Estimate tokens and cost
-        token_count = len(review_text) // 4  # Rough estimate
-        cost_per_token = self.model_router.get_cost_per_token(model)
-        estimated_cost = token_count * cost_per_token
-        
-        # Note: This is a cost simulation demo - replace with real OpenRouter API
-        # For real API integration, see week1_complexity_routing_system.py with OpenRouter
-        await asyncio.sleep(0.1 if model == 'claude-haiku' else 0.3)
-        
-        # Simulate analysis results
-        sentiment_map = {5: 'Positive', 4: 'Positive', 3: 'Neutral', 2: 'Negative', 1: 'Negative'}
-        sentiment = sentiment_map.get(review_data.get('rating', 3), 'Neutral')
-        
-        # Track cost
-        actual_cost = self.cost_tracker.log_request(model, token_count, estimated_cost)
-        processing_time = time.time() - start_time
-        
-        result = ProductReviewResult(
-            product_category=category,
-            sentiment=sentiment,
-            product_quality='Good' if review_data.get('rating', 3) >= 4 else 'Fair',
-            purchase_recommendation='Recommend' if review_data.get('rating', 3) >= 4 else 'Neutral',
-            key_insights=[f"Customer feedback on {category.lower()} product"],
-            cost=actual_cost,
-            model_used=model,
-            cache_hit=False,
-            processing_time=processing_time
+        # Record cost tracking
+        estimated_cost = routing_result.get('estimated_cost', 0.0)
+        self.cost_tracker.record_api_call(
+            model=routing_result.get('model_config', {}).get('model_name', 'unknown'),
+            tokens=routing_result.get('estimated_tokens', 0),
+            cost=estimated_cost
         )
         
-        # Cache result
-        self.cache.set(review_text, category, result)
-        return result
-
-    async def batch_analyze_async(self, reviews: List[Dict[str, Any]], batch_size: int = 10) -> List[ProductReviewResult]:
-        """Process reviews in batches with async concurrency control"""
-        # Early validation
-        if not reviews:
-            raise ValueError("No reviews provided for processing")
-        
-        if batch_size <= 0:
-            raise ValueError("Batch size must be positive")
-        
-        results = []
-        semaphore = asyncio.Semaphore(5)  # Limit concurrent operations
-        
-        async def process_single_review(review: Dict[str, Any]) -> Optional[ProductReviewResult]:
-            """Process a single review with semaphore control"""
-            async with semaphore:
-                try:
-                    return await self.analyze_review(review)
-                except Exception as e:
-                    print(f"⚠️ Error processing review: {e}")
-                    return None
-        
-        # Process in batches to manage memory and API limits
-        for i in range(0, len(reviews), batch_size):
-            batch = reviews[i:i + batch_size]
-            print(f"🔄 Processing batch {i//batch_size + 1} with {len(batch)} reviews...")
-            
-            try:
-                # Process batch concurrently
-                batch_tasks = [process_single_review(review) for review in batch]
-                batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
-                
-                # Filter out None results and exceptions
-                for result in batch_results:
-                    if isinstance(result, ProductReviewResult):
-                        results.append(result)
-                    elif isinstance(result, Exception):
-                        print(f"⚠️ Batch processing error: {result}")
-                        
-            except Exception as e:
-                print(f"⚠️ Critical error in batch processing: {e}")
-                continue
-        
-        return results
-
-    def batch_analyze(self, reviews: List[Dict[str, Any]]) -> List[ProductReviewResult]:
-        """Process reviews in batches - Synchronous wrapper for backward compatibility"""
-        # Early validation 
-        if not reviews:
-            raise ValueError("No reviews provided for processing")
-        
-        results = []
-        
-        # Group by category for efficiency
-        categorized = defaultdict(list)
-        for review in reviews:
-            if 'category' not in review:
-                print(f"⚠️ Skipping review without category: {review}")
-                continue
-            categorized[review['category']].append(review)
-        
-        # Process each category
-        for category, category_reviews in categorized.items():
-            print(f"🔄 Processing {len(category_reviews)} {category} reviews...")
-            
-            # Process one review at a time to avoid async conflicts
-            for review in category_reviews:
-                try:
-                    # Create simple sync version instead of async
-                    start_time = time.time()
-                    
-                    review_text = review['review_text']
-                    category = review['category']
-                    
-                    # Check cache first
-                    cached_result = self.cache.get(review_text, category)
-                    if cached_result:
-                        cached_result.cache_hit = True
-                        self.cost_tracker.log_request('cache', 0, 0.0, cache_hit=True)
-                        results.append(cached_result)
-                        continue
-                    
-                    # Route to optimal model
-                    model = self.model_router.route_request(review_text, category)
-                    
-                    # Calculate cost
-                    token_count = len(review_text) // 4
-                    cost_per_token = self.model_router.get_cost_per_token(model)
-                    estimated_cost = token_count * cost_per_token
-                    
-                    # Note: Cost simulation only - real API in week1_complexity_routing_system.py
-                    time.sleep(0.05 if model == 'claude-haiku' else 0.1)
-                    
-                    # Generate result
-                    sentiment_map = {5: 'Positive', 4: 'Positive', 3: 'Neutral', 2: 'Negative', 1: 'Negative'}
-                    sentiment = sentiment_map.get(review.get('rating', 3), 'Neutral')
-                    
-                    # Track cost
-                    actual_cost = self.cost_tracker.log_request(model, token_count, estimated_cost)
-                    processing_time = time.time() - start_time
-                    
-                    # Create result
-                    analysis_result = ProductReviewResult(
-                        product_category=category,
-                        sentiment=sentiment,
-                        product_quality='Good' if review.get('rating', 3) >= 4 else 'Fair',
-                        purchase_recommendation='Recommend' if review.get('rating', 3) >= 4 else 'Neutral',
-                        key_insights=[f"Customer feedback on {category.lower()} product"],
-                        cost=actual_cost,
-                        model_used=model,
-                        cache_hit=False,
-                        processing_time=processing_time,
-                    #    review_length removed
-                    )
-                    
-                    # Cache for future use
-                    self.cache.set(review_text, category, analysis_result)
-                    results.append(analysis_result)
-                    
-                except Exception as e:
-                    print(f"⚠️ Skipping review due to error: {e}")
-                    continue
-        return results
+        return ProductReviewResult(
+            review_id=review_data.get('review_id', 'unknown'),
+            category=category,
+            sentiment=review_data.get('sentiment', 'Unknown'),
+            model_used=routing_result.get('model_config', {}).get('model_name', 'unknown'),
+            cost=estimated_cost,
+            processing_time=0.0,  # Would be measured in actual processing
+            cache_hit=False,      # No cache in Week 1
+            tokens_used=routing_result.get('estimated_tokens', 0),
+            response_preview="Analysis would be performed here",
+            complexity_score=routing_result.get('complexity_analysis', {}).get('final', 0.0),
+            routing_tier=routing_result.get('recommended_tier', 'unknown'),
+            routing_reasoning=routing_result.get('routing_explanation', [])
+        )
     
-    def get_optimization_report(self) -> Dict:
-        """Generate optimization report"""
-        metrics = self.cost_tracker.get_metrics()
-        
-        # Calculate savings vs baseline (GPT-4 Turbo for all requests)
-        # Assuming average 150 tokens per review at $10 per million tokens
-        baseline_tokens_per_request = 150
-        baseline_cost_per_token = 10.00 / 1_000_000  # GPT-4 Turbo pricing
-        baseline_cost_per_request = baseline_tokens_per_request * baseline_cost_per_token
-        baseline_cost = metrics['total_requests'] * baseline_cost_per_request
-        actual_cost = metrics['total_cost']
-        savings = baseline_cost - actual_cost
-        savings_percentage = (savings / baseline_cost * 100) if baseline_cost > 0 else 0
-        
-        return {
-            'optimization_metrics': metrics,
-            'cost_comparison': {
-                'baseline_cost': round(baseline_cost, 6),
-                'optimized_cost': round(actual_cost, 6),
-                'total_savings': round(savings, 6),
-                'savings_percentage': round(savings_percentage, 1)
-            }
-        }
-
-# Main execution
-async def main():
-    """Day 1 Demo: Amazon Review Optimization - AUTHENTIC DATA ONLY"""
-    print("🚀 Amazon Product Review Analysis Optimizer - Day 1")
-    print("Using ONLY Authentic Amazon Reviews - NO SIMULATION DATA")
-    print("=" * 60)
-    
-    analyzer = AmazonReviewAnalyzer()
-    
-    # Load Amazon data - scale to Week 1 target
-    print("📦 Loading Amazon review data for Week 1 analysis...")
-    
-    # Try multiple categories for comprehensive analysis
-    all_reviews = []
-    categories = ["Electronics", "Books", "Home_and_Garden"]
-    reviews_per_category = 334  # ~1000 total / 3 categories
-    
-    for category in categories:
-        category_reviews = analyzer.data_loader.load_sample_data(category, sample_size=reviews_per_category)
-        all_reviews.extend(category_reviews)
-        print(f"✅ Loaded {len(category_reviews)} {category} reviews")
-    
-    amazon_reviews = all_reviews[:1000]  # Ensure exactly 1000 for consistency
-    
-    print(f"📊 Processing {len(amazon_reviews)} real Amazon reviews...")
-    
-    start_time = time.time()
-    results = analyzer.batch_analyze(amazon_reviews)
-    total_time = time.time() - start_time
-    
-    print(f"✅ Processing completed in {total_time:.2f} seconds")
-    
-    # Show sample results
-    print(f"\n📈 Sample Results:")
-    for i, result in enumerate(results[:3]):
-        print(f"\nReview {i+1}:")
-        print(f"  Category: {result.product_category}")
-        print(f"  Sentiment: {result.sentiment}")
-        print(f"  Quality: {result.product_quality}")
-        print(f"  Model: {result.model_used}")
-        print(f"  Cost: ${result.cost:.6f}")
-        print(f"  Cached: {'Yes' if result.cache_hit else 'No'}")
-    
-    # Generate report
-    report = analyzer.get_optimization_report()
-    
-    print(f"\n💰 Optimization Report:")
-    print(f"  Baseline cost (GPT-4): ${report['cost_comparison']['baseline_cost']:.6f}")
-    print(f"  Optimized cost: ${report['cost_comparison']['optimized_cost']:.6f}")
-    print(f"  Total savings: ${report['cost_comparison']['total_savings']:.6f}")
-    print(f"  Savings percentage: {report['cost_comparison']['savings_percentage']:.1f}%")
-    
-    print(f"\n⚡ Performance Metrics:")
-    print(f"  Cache hit rate: {report['optimization_metrics']['cache_hit_rate']}%")
-    print(f"  Total requests: {report['optimization_metrics']['total_requests']}")
-    print(f"  Cost per request: ${report['optimization_metrics']['cost_per_request']:.6f}")
-    
-    print(f"\n🎯 Day 1 SUCCESS Metrics:")
-    print(f"  • {report['cost_comparison']['savings_percentage']:.0f}% cost reduction achieved ✅")
-    print(f"  • {len(amazon_reviews)} real Amazon reviews processed ✅")
-    print(f"  • {report['optimization_metrics']['cache_hit_rate']:.0f}% cache efficiency ✅")
-    print(f"  • {total_time:.1f}s total processing time ✅")
-    
-    return report
-
-if __name__ == "__main__":
-    # Run Day 1 demonstration
-    asyncio.run(main())
+    def get_cost_summary(self) -> Dict[str, Any]:
+        """Get comprehensive cost analysis summary"""
+        return self.cost_tracker.get_summary()

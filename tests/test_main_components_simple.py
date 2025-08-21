@@ -13,7 +13,7 @@ import sys
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from main import AmazonDataLoader, ModelRouter, SemanticCache, AmazonReviewAnalyzer, ProductReviewResult
+from main import AmazonDataLoader, ModelRouter, AmazonReviewAnalyzer, ProductReviewResult
 
 
 class TestAmazonDataLoader(unittest.TestCase):
@@ -91,91 +91,6 @@ class TestModelRouter(unittest.TestCase):
         self.assertIn(long_model, self.router.model_costs.keys())
 
 
-class TestSemanticCache(unittest.TestCase):
-    """Test SemanticCache functionality - matches current implementation"""
-    
-    def setUp(self):
-        """Set up test fixtures"""
-        self.cache = SemanticCache(max_size=5)
-    
-    def test_initialization(self):
-        """Test cache initializes correctly"""
-        self.assertEqual(self.cache.max_size, 5)
-        self.assertEqual(len(self.cache.cache), 0)
-        self.assertEqual(self.cache.hits, 0)
-        self.assertEqual(self.cache.misses, 0)
-    
-    def test_cache_key_generation(self):
-        """Test cache key generation is consistent"""
-        text1 = "Sample review text"
-        text2 = "Sample review text"  # Identical
-        text3 = "Different review text"
-        
-        key1 = self.cache._generate_cache_key(text1, "Electronics")
-        key2 = self.cache._generate_cache_key(text2, "Electronics")
-        key3 = self.cache._generate_cache_key(text3, "Electronics")
-        key4 = self.cache._generate_cache_key(text1, "Books")  # Different category
-        
-        self.assertEqual(key1, key2)  # Same content should generate same key
-        self.assertNotEqual(key1, key3)  # Different content should generate different key
-        self.assertNotEqual(key1, key4)  # Different category should generate different key
-    
-    def test_cache_put_and_get(self):
-        """Test storing and retrieving from cache"""
-        review_text = "Sample review"
-        category = "Electronics"
-        result = {"sentiment": "positive", "score": 0.8}
-        
-        # Put item in cache
-        self.cache.put(review_text, category, result)
-        self.assertEqual(len(self.cache.cache), 1)
-        
-        # Get item from cache
-        cached_result = self.cache.get(review_text, category)
-        self.assertEqual(cached_result, result)
-        self.assertEqual(self.cache.hits, 1)
-        self.assertEqual(self.cache.misses, 0)
-    
-    def test_cache_miss(self):
-        """Test cache miss behavior"""
-        result = self.cache.get("Non-existent review", "Electronics")
-        self.assertIsNone(result)
-        self.assertEqual(self.cache.hits, 0)
-        self.assertEqual(self.cache.misses, 1)
-    
-    def test_cache_size_limit(self):
-        """Test cache eviction when size limit is reached"""
-        # Fill cache to capacity
-        for i in range(6):  # max_size is 5, so this should trigger eviction
-            self.cache.put(f"Review {i}", "Electronics", {"score": i})
-        
-        # Cache should not exceed max size
-        self.assertEqual(len(self.cache.cache), 5)
-        
-        # First item should be evicted (FIFO)
-        first_result = self.cache.get("Review 0", "Electronics")
-        self.assertIsNone(first_result)
-        
-        # Last item should still be there
-        last_result = self.cache.get("Review 5", "Electronics")
-        self.assertEqual(last_result, {"score": 5})
-    
-    def test_cache_statistics(self):
-        """Test cache statistics calculation"""
-        # Add some cache hits and misses
-        self.cache.put("Review 1", "Electronics", {"score": 1})
-        self.cache.get("Review 1", "Electronics")  # Hit
-        self.cache.get("Review 2", "Electronics")  # Miss
-        self.cache.get("Review 1", "Electronics")  # Hit
-        
-        stats = self.cache.get_stats()
-        
-        self.assertEqual(stats['hits'], 2)
-        self.assertEqual(stats['misses'], 1)
-        self.assertEqual(stats['total_requests'], 3)
-        self.assertEqual(stats['hit_rate'], 2/3)
-        self.assertEqual(stats['cache_size'], 1)
-        self.assertEqual(stats['max_size'], 5)
 
 
 class TestAmazonReviewAnalyzer(unittest.TestCase):
@@ -196,8 +111,8 @@ class TestAmazonReviewAnalyzer(unittest.TestCase):
         """Test analyzer initializes with all components"""
         # These components exist based on the current implementation
         self.assertIsNotNone(self.analyzer.data_loader)
-        self.assertIsNotNone(self.analyzer.model_router)
-        self.assertIsNotNone(self.analyzer.cache)
+        self.assertIsNotNone(self.analyzer.cost_tracker)
+        self.assertIsNotNone(self.analyzer.router)
 
 
 class TestProductReviewResult(unittest.TestCase):

@@ -51,8 +51,8 @@ class TestEndToEndWorkflow(unittest.TestCase):
         analyzer = AmazonReviewAnalyzer()
         
         self.assertIsNotNone(analyzer.data_loader)
-        self.assertIsNotNone(analyzer.model_router)
-        self.assertIsNotNone(analyzer.cache)
+        self.assertIsNotNone(analyzer.cost_tracker)
+        self.assertIsNotNone(analyzer.router)
     
     def test_smart_router_integration(self):
         """Test SmartRouterV2 integration with cost tracking"""
@@ -96,30 +96,26 @@ class TestEndToEndWorkflow(unittest.TestCase):
         self.assertIsNotNone(router.config)
         self.assertIsNotNone(cost_tracker.baseline_tokens_per_request)
     
-    def test_cache_integration(self):
-        """Test semantic cache integration across components"""
+    def test_cost_tracking_integration(self):
+        """Test cost tracking integration across components"""
         analyzer = AmazonReviewAnalyzer()
         
-        # Same review processed twice should use cache
-        duplicate_review = {
-            'review_text': 'Identical review text for cache testing',
+        # Process sample review and track costs
+        sample_review = {
+            'review_text': 'Test review for cost tracking validation',
             'category': 'Electronics',
             'rating': 4,
-            'review_id': 'cache_001'
+            'review_id': 'cost_001'
         }
         
-        # First analysis
-        result1 = analyzer.batch_analyze([duplicate_review])
-        cache_stats_1 = analyzer.cache.get_stats()
+        # Analyze and check cost tracking
+        results = analyzer.batch_analyze([sample_review])
+        cost_summary = analyzer.cost_tracker.get_week_summary()
         
-        # Second analysis (should hit cache)
-        result2 = analyzer.batch_analyze([duplicate_review])
-        cache_stats_2 = analyzer.cache.get_stats()
-        
-        # Verify cache was used
-        self.assertEqual(len(result1), 1)
-        self.assertEqual(len(result2), 1)
-        self.assertGreaterEqual(cache_stats_2['hits'], cache_stats_1['hits'])
+        # Verify cost tracking worked
+        self.assertEqual(len(results), 1)
+        self.assertGreater(cost_summary.total_cost_usd, 0)
+        self.assertEqual(cost_summary.total_reviews, 1)
 
 
 class TestSystemPerformance(unittest.TestCase):

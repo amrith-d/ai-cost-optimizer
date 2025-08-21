@@ -29,7 +29,6 @@ class OpenRouterOptimizer:
         self.config = self._load_config(config_path)
         self.openrouter_config = self._setup_openrouter()
         self.client = self._create_client()
-        self.conversation_cache = {}  # For KV cache optimization
         self.token_encoder = tiktoken.get_encoding("cl100k_base")
         
     def _load_config(self, config_path: str) -> Dict:
@@ -78,7 +77,7 @@ class OpenRouterOptimizer:
         """Get model configuration by tier"""
         return self.config['models'][model_tier]
     
-    def _create_optimized_prompt(self, review_text: str, category: str, use_conversation: bool = True) -> List[Dict]:
+    def _create_optimized_prompt(self, review_text: str, category: str) -> List[Dict]:
         """Create optimized prompt for API call"""
         base_prompt = f"""Analyze this {category.lower()} product review for:
 1. Sentiment (Positive/Negative/Neutral)
@@ -91,17 +90,11 @@ Review: "{review_text}"
 Respond in JSON format:
 {{"sentiment": "", "quality": "", "recommendation": "", "insights": []}}"""
 
-        if use_conversation and category in self.conversation_cache:
-            # Reuse conversation context (KV cache optimization)
-            messages = self.conversation_cache[category] + [
-                {"role": "user", "content": f"Analyze: {review_text}"}
-            ]
-        else:
-            # New conversation
-            messages = [
-                {"role": "system", "content": f"You are an expert at analyzing {category.lower()} product reviews."},
-                {"role": "user", "content": base_prompt}
-            ]
+        # Create conversation
+        messages = [
+            {"role": "system", "content": f"You are an expert at analyzing {category.lower()} product reviews."},
+            {"role": "user", "content": base_prompt}
+        ]
         
         return messages
     
@@ -142,11 +135,6 @@ Respond in JSON format:
             actual_cost = self._estimate_cost(model_config, actual_tokens)
             self.openrouter_config.current_spend += actual_cost
             
-            # Cache conversation for future KV optimization
-            self.conversation_cache[category] = messages + [
-                {"role": "assistant", "content": response.choices[0].message.content}
-            ]
-            
             # Parse response
             content = response.choices[0].message.content
             processing_time = time.time() - start_time
@@ -157,7 +145,7 @@ Respond in JSON format:
                 'cost': actual_cost,
                 'tokens_used': actual_tokens,
                 'processing_time': processing_time,
-                'cache_optimized': category in self.conversation_cache
+                'response_generated': True
             }
             
         except Exception as e:
@@ -227,7 +215,6 @@ Respond in JSON format:
         return {
             'total_spent': round(self.openrouter_config.current_spend, 6),
             'remaining_budget': round(self.openrouter_config.max_budget - self.openrouter_config.current_spend, 6),
-            'conversation_contexts': len(self.conversation_cache),
             'models_used': list(self.config['models'].keys())
         }
 
