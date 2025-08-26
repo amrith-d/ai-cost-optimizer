@@ -118,8 +118,6 @@ Foundation ──→ Optimization ──→ Enterprise
 - **API Extensions**: REST API for external system integration
 
 
-
-
 ## Component Structure
 
 ```
@@ -128,8 +126,8 @@ src/
 ├── core/
 │   ├── smart_router_v2.py    # Complexity analysis & routing
 │   ├── cost_reporter.py      # Cost tracking & reporting
-│   └── integrations/
-│       └── openrouter_integration.py  # API client
+├── integrations/
+│   └── openrouter_integration.py  # API client
 ```
 
 **Component Details:**
