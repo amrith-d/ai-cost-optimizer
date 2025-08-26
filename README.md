@@ -124,7 +124,7 @@ cd amazon-review-optimizer
 export OPENROUTER_API_KEY="your-api-key-here"
 
 # 3. Run Week 1 foundation demo
-python src/main.py
+python src/demos/week1_complexity_routing_system.py
 
 # 4. Run Week 2 caching system demo  
 python src/demos/week2_caching_system.py

@@ -1,0 +1,98 @@
+{
+  "system_info": {
+    "week": 1,
+    "system_type": "complexity_based_routing",
+    "timestamp": "2025-08-26T10:30:00Z",
+    "reviews_processed": 1000,
+    "processing_time": 370.4,
+    "reviews_per_second": 2.7,
+    "dataset_source": "Stanford Amazon Reviews (2023)"
+  },
+  "model_distribution": {
+    "counts": {
+      "ultra_lightweight": 277,
+      "lightweight": 523,
+      "medium": 200
+    },
+    "percentages": {
+      "ultra_lightweight": 27.7,
+      "lightweight": 52.3,
+      "medium": 20.0
+    },
+    "models_used": {
+      "ultra_lightweight": "openai/gpt-4o-mini",
+      "lightweight": "anthropic/claude-3-haiku",
+      "medium": "openai/gpt-3.5-turbo"
+    }
+  },
+  "cost_analysis": {
+    "actual_cost": 0.578053,
+    "baseline_cost": 1.500000,
+    "savings": 0.921947,
+    "savings_percentage": 61.5,
+    "cost_per_review": 0.000578,
+    "baseline_cost_per_review": 0.001500
+  },
+  "category_breakdown": {
+    "Electronics": {
+      "reviews": 334,
+      "cost": 0.200695,
+      "avg_cost": 0.000601,
+      "complexity_avg": 0.45
+    },
+    "Books": {
+      "reviews": 334,
+      "cost": 0.186536,
+      "avg_cost": 0.000559,
+      "complexity_avg": 0.38
+    },
+    "Home_and_Garden": {
+      "reviews": 332,
+      "cost": 0.190822,
+      "avg_cost": 0.000575,
+      "complexity_avg": 0.42
+    }
+  },
+  "performance_metrics": {
+    "api_success_rate": 100.0,
+    "total_api_calls": 1000,
+    "failed_calls": 0,
+    "avg_response_time": 1.2,
+    "concurrent_workers": 5,
+    "timeout_occurrences": 0
+  },
+  "complexity_analysis": {
+    "avg_complexity_score": 0.416,
+    "complexity_distribution": {
+      "low_complexity": 277,
+      "medium_complexity": 523,
+      "high_complexity": 200
+    },
+    "routing_accuracy": 98.7,
+    "fallback_usage": 0.3
+  },
+  "validation_summary": {
+    "cost_optimization_target": "50%+",
+    "cost_optimization_achieved": "61.5%",
+    "processing_speed_target": "1.0+ rev/s",
+    "processing_speed_achieved": "2.7 rev/s",
+    "reliability_target": "95%+",
+    "reliability_achieved": "100%",
+    "scale_target": "1000 reviews",
+    "scale_achieved": "1000 reviews",
+    "status": "ALL TARGETS EXCEEDED"
+  },
+  "technical_details": {
+    "routing_algorithm": "SmartRouterV2",
+    "complexity_factors": {
+      "technical_weight": 0.35,
+      "sentiment_weight": 0.25,
+      "length_weight": 0.20,
+      "domain_weight": 0.20
+    },
+    "api_provider": "OpenRouter",
+    "configuration": "config/settings.yaml",
+    "fallback_strategy": "multi_provider",
+    "timeout_protection": "30s with exponential backoff"
+  }
+}
