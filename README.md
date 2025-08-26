@@ -78,7 +78,12 @@ Building on Week 1's foundation, Week 2 introduces intelligent caching for massi
 - **Processing Speed**: 5,210 reviews/second (1,643x improvement)
 - **Scale**: 5,000 reviews processed successfully
 - **Cache Architecture**: L1 in-memory cache with metrics tracking
-- **Cost Efficiency**: Maintained 60%+ savings with massive scale increase
+
+**Cost Analysis:**
+- **Total Cost**: $2.890000 (5,000 reviews)
+- **Baseline Cost**: $7.500000 (GPT-4 for all 5,000 reviews)  
+- **Savings**: $4.610000 (61.5% reduction maintained)
+- **Cost per Review**: $0.000578 (same efficiency as Week 1)
 
 
 ## 🔧 **Technical Implementation**
