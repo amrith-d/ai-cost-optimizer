@@ -74,22 +74,9 @@ README.md                      # Project overview
 .gitignore                     # Version control exclusions
 ```
 
-## Key Performance Metrics (Week 1 Validated)
+## Processing Flow Details
 
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| Cost Reduction | 50%+ | **63.3%** | ✅ Exceeded |
-| Processing Speed | 1.0+ rev/s | **2.70 rev/s** | ✅ Exceeded |
-| Reliability | 95%+ | **100%** | ✅ Perfect |
-| Scale | 1000 reviews | **1000** | ✅ Complete |
-
-## Model Distribution (Actual Usage)
-- **52.3%** Claude Haiku (lightweight)
-- **27.7%** GPT-4o-mini (ultra-lightweight)  
-- **20.0%** GPT-3.5-turbo (medium)
-- **0%** Premium models (efficient routing)
-
-**Result**: 80% of reviews processed with cost-effective models, achieving optimal cost-quality balance.
+The system processes reviews through a 4-stage pipeline optimized for both cost and quality:
 
 ## System Scalability & Future Development
 
@@ -118,23 +105,21 @@ Foundation ──→ Optimization ──→ Enterprise
 - **API Extensions**: REST API for external system integration
 
 
-## Component Structure
+## Component Architecture
 
+### Data Flow Architecture
 ```
-src/
-├── main.py                    # Main analyzer class
-├── core/
-│   ├── smart_router_v2.py    # Complexity analysis & routing
-│   ├── cost_reporter.py      # Cost tracking & reporting
-├── integrations/
-│   └── openrouter_integration.py  # API client
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  AmazonReview   │───▶│  SmartRouterV2  │───▶│ OpenRouterAPI   │
+│   DataLoader    │    │ ComplexityScore │    │  ModelTier      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Raw Reviews   │    │   Routing       │    │   AI Analysis   │
+│   1000 items    │    │   Decision      │    │   Results       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
-
-**Component Details:**
-- **main.py**: AmazonDataLoader, CostTracker, ModelRouter, AmazonReviewAnalyzer
-- **core/smart_router_v2.py**: SmartRouterV2
-- **core/cost_reporter.py**: CostTracker
-- **integrations/openrouter_integration.py**: OpenRouterOptimizer
 
 **Testing Structure:**
 ```
